@@ -195,15 +195,32 @@ function displayWorkouts() {
   })
 }
 
-function updateStats() {
+async function updateStats() {
   const total = workoutsData.length
   const completed = workoutsData.filter((w) => w.status === 'terlaksana').length
   const totalMinutes = workoutsData.reduce((sum, w) => sum + w.duration, 0)
 
   document.getElementById('totalWorkouts').textContent = total
   document.getElementById('completedWorkouts').textContent = completed
-  document.getElementById('totalCalories').textContent = 0
   document.getElementById('totalMinutes').textContent = totalMinutes
+  
+  // Fetch total calories
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch(`${API_URL}/latihan/calories/total`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      document.getElementById('totalCalories').textContent = data.totalCalories
+    } else {
+      document.getElementById('totalCalories').textContent = 0
+    }
+  } catch (error) {
+    console.error('Error fetching calories:', error)
+    document.getElementById('totalCalories').textContent = 0
+  }
 }
 
 function editWorkout(id) {

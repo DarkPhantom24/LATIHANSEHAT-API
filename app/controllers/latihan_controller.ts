@@ -99,4 +99,98 @@ export default class LatihanController {
       return response.status(500).json({ error: 'Gagal menghapus latihan' })
     }
   }
+
+  public async getCalories({ request, response }: HttpContext) {
+    console.log('=== GET CALORIES DIPANGGIL ===')
+    try {
+      const userId = (request as any).userId
+      const latihan = await Latihan.find({ userId, status: 'terlaksana' })
+      console.log('Latihan terlaksana:', latihan.length)
+      
+      let totalCalories = 0
+      
+      // Mapping aktivitas ke nama yang dikenali API
+      const activityMap: { [key: string]: string } = {
+        'lari': 'running',
+        'jogging': 'running', 
+        'jalan': 'walking',
+        'sepeda': 'cycling',
+        'renang': 'swimming',
+        'push up': 'push ups',
+        'sit up': 'sit ups',
+        'squat': 'squats',
+        'yoga': 'yoga',
+        'gym': 'weight lifting'
+      }
+      
+      for (const workout of latihan) {
+        console.log(`Processing: ${workout.name}, duration: ${workout.duration}`)
+        
+        // Coba dengan nama asli dulu
+        let activityName = workout.name.toLowerCase()
+        let calories = 0
+        
+        try {
+          let apiUrl = `https://api.api-ninjas.com/v1/caloriesburned?activity=${encodeURIComponent(activityName)}&duration=${workout.duration}`
+          
+          let apiResponse = await fetch(apiUrl, {
+            headers: {
+              'X-Api-Key': 'AUGFsLOng2SbDKpxBls/Pg==ksceTCUCmU6UYWEC'
+            }
+          })
+          
+          if (apiResponse.ok) {
+            let caloriesData = await apiResponse.json() as any[]
+            console.log('API response for', activityName, ':', caloriesData)
+            
+            if (caloriesData.length > 0) {
+              calories = caloriesData[0].total_calories
+            } else {
+              // Coba dengan mapping jika tidak ada hasil
+              const mappedActivity = activityMap[activityName]
+              if (mappedActivity) {
+                console.log('Trying mapped activity:', mappedActivity)
+                apiUrl = `https://api.api-ninjas.com/v1/caloriesburned?activity=${encodeURIComponent(mappedActivity)}&duration=${workout.duration}`
+                
+                apiResponse = await fetch(apiUrl, {
+                  headers: {
+                    'X-Api-Key': 'AUGFsLOng2SbDKpxBls/Pg==ksceTCUCmU6UYWEC'
+                  }
+                })
+                
+                if (apiResponse.ok) {
+                  caloriesData = await apiResponse.json() as any[]
+                  console.log('Mapped API response:', caloriesData)
+                  if (caloriesData.length > 0) {
+                    calories = caloriesData[0].total_calories
+                  }
+                }
+              }
+              
+              // Fallback: estimasi kalori berdasarkan durasi
+              if (calories === 0) {
+                calories = Math.round(workout.duration * 5) // 5 kalori per menit sebagai estimasi
+                console.log('Using fallback calories:', calories)
+              }
+            }
+          }
+        } catch (error) {
+          console.log('Error fetching calories:', error)
+          // Fallback jika error
+          calories = Math.round(workout.duration * 5)
+        }
+        
+        totalCalories += calories
+        console.log(`Added ${calories} calories, total now: ${totalCalories}`)
+      }
+      
+      console.log('Final total calories:', totalCalories)
+      return response.json({
+        totalCalories
+      })
+    } catch (error) {
+      console.log('Controller getCalories error:', error)
+      return response.status(500).json({ error: 'Gagal menghitung kalori' })
+    }
+  }
 }

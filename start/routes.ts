@@ -25,6 +25,7 @@ router
   .group(() => {
     router.post('/latihan', [LatihanController, 'store'])
     router.get('/latihan', [LatihanController, 'index'])
+    router.get('/latihan/calories/total', [LatihanController, 'getCalories'])
     router.put('/latihan/:id', [LatihanController, 'update'])
     router.delete('/latihan/:id', [LatihanController, 'destroy'])
   })
