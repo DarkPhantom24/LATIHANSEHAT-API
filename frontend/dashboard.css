@@ -225,6 +225,24 @@
     display: none;
 }
 
+/* Weather info styles */
+.weather-info {
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: 4px;
+    padding: 2px;
+    margin: 2px 0;
+}
+
+.weather-info div:first-child {
+    font-size: 16px;
+    line-height: 1;
+}
+
+.weather-info div:last-child {
+    font-size: 10px;
+    font-weight: 600;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .workout-card {
