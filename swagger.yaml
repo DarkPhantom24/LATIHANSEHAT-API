@@ -1,0 +1,1034 @@
+openapi: 3.0.0
+info:
+  title: LATIHANSEHAT API Documentation
+  description: |
+    Dokumentasi API untuk aplikasi LATIHANSEHAT - Sistem manajemen latihan kesehatan dengan arsitektur hybrid REST + GraphQL.
+
+    ## Fitur Utama:
+    - Autentikasi JWT Bearer Token
+    - CRUD Latihan (REST & GraphQL)
+    - Manajemen User
+    - Kalkulasi Kalori Otomatis
+    - Tracking Status Latihan
+
+    ## Keamanan:
+    - JWT Authentication dengan expiry 7 hari
+    - Password hashing menggunakan bcrypt
+    - Validasi Input 
+
+    ## Base URL:
+    - Development: `http://localhost:3333`
+  version: 1.0.0
+  contact:
+    name: LATIHANSEHAT API Support
+    email: support@latihansehat.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3333
+    description: Development Server
+
+# Security Schemes
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token yang didapat dari endpoint login
+
+  # Data Models/Schemas
+  schemas:
+    User:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: MongoDB ObjectId
+          example: '507f1f77bcf86cd799439011'
+        name:
+          type: string
+          description: Nama lengkap user
+          example: 'John Doe'
+        email:
+          type: string
+          format: email
+          description: Email user (unique)
+          example: 'john@example.com'
+        createdAt:
+          type: string
+          format: date-time
+          description: Waktu pembuatan akun
+        updatedAt:
+          type: string
+          format: date-time
+          description: Waktu update terakhir
+      required:
+        - name
+        - email
+
+    Latihan:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: MongoDB ObjectId
+          example: '507f1f77bcf86cd799439011'
+        userId:
+          type: string
+          description: ID user pemilik latihan
+          example: '507f1f77bcf86cd799439012'
+        name:
+          type: string
+          description: Nama latihan
+          example: 'Lari Pagi'
+        type:
+          type: string
+          enum: [cardio, strength, flexibility]
+          description: Jenis latihan
+          example: 'cardio'
+        duration:
+          type: integer
+          minimum: 1
+          description: Durasi latihan dalam menit
+          example: 30
+        date:
+          type: string
+          format: date
+          description: Tanggal latihan
+          example: '2024-01-15'
+        status:
+          type: string
+          enum: [terlaksana, belum_terlaksana]
+          default: belum_terlaksana
+          description: Status pelaksanaan latihan
+          example: 'terlaksana'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - name
+        - type
+        - duration
+        - date
+
+    # Request/Response Models
+    RegisterRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 100
+          example: 'John Doe'
+        email:
+          type: string
+          format: email
+          example: 'john@example.com'
+        password:
+          type: string
+          minLength: 6
+          maxLength: 100
+          example: 'password123'
+      required:
+        - name
+        - email
+        - password
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          example: 'john@example.com'
+        password:
+          type: string
+          example: 'password123'
+      required:
+        - email
+        - password
+
+    LatihanRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: 'Lari Pagi'
+        type:
+          type: string
+          enum: [cardio, strength, flexibility]
+          example: 'cardio'
+        duration:
+          type: integer
+          minimum: 1
+          maximum: 1440
+          example: 30
+        date:
+          type: string
+          format: date
+          example: '2024-01-15'
+      required:
+        - name
+        - type
+        - duration
+        - date
+
+    LatihanUpdateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: 'Lari Sore'
+        type:
+          type: string
+          enum: [cardio, strength, flexibility]
+          example: 'cardio'
+        duration:
+          type: integer
+          minimum: 1
+          maximum: 1440
+          example: 45
+        date:
+          type: string
+          format: date
+          example: '2024-01-16'
+        status:
+          type: string
+          enum: [terlaksana, belum_terlaksana]
+          example: 'terlaksana'
+
+    # Response Models
+    AuthResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: 'Login successful'
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+              example: '507f1f77bcf86cd799439011'
+            name:
+              type: string
+              example: 'John Doe'
+            email:
+              type: string
+              example: 'john@example.com'
+        token:
+          type: string
+          description: JWT token untuk autentikasi
+          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+
+    LatihanResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: 'Data latihan berhasil diambil'
+        latihan:
+          oneOf:
+            - $ref: '#/components/schemas/Latihan'
+            - type: array
+              items:
+                $ref: '#/components/schemas/Latihan'
+
+    CaloriesResponse:
+      type: object
+      properties:
+        totalCalories:
+          type: integer
+          description: Total kalori yang terbakar dari semua latihan terlaksana
+          example: 450
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Pesan error
+          example: 'Email already exists'
+
+    # GraphQL Schema Documentation
+    GraphQLQuery:
+      type: object
+      properties:
+        query:
+          type: string
+          description: GraphQL query string
+          example: |
+            {
+              latihan {
+                _id
+                name
+                type
+                duration
+                date
+                status
+              }
+            }
+        variables:
+          type: object
+          description: Variables untuk GraphQL query
+          example: {}
+
+    GraphQLResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          description: Data hasil query GraphQL
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              message:
+                type: string
+              locations:
+                type: array
+                items:
+                  type: object
+              path:
+                type: array
+                items:
+                  type: string
+
+# API Endpoints
+paths:
+  # Authentication Endpoints
+  /register:
+    post:
+      tags:
+        - Authentication
+      summary: Registrasi user baru
+      description: |
+        Mendaftarkan user baru ke sistem. Email harus unique dan password akan di-hash secara otomatis.
+
+        **Validasi:**
+        - Name: minimal 2 karakter
+        - Email: format email valid dan belum terdaftar
+        - Password: minimal 6 karakter
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              valid_registration:
+                summary: Registrasi valid
+                value:
+                  name: 'John Doe'
+                  email: 'john@example.com'
+                  password: 'password123'
+      responses:
+        '201':
+          description: User berhasil didaftarkan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              examples:
+                success:
+                  summary: Registrasi berhasil
+                  value:
+                    message: 'User registered successfully'
+                    user:
+                      id: '507f1f77bcf86cd799439011'
+                      name: 'John Doe'
+                      email: 'john@example.com'
+                    token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+        '400':
+          description: Email sudah terdaftar atau data tidak valid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                email_exists:
+                  summary: Email sudah ada
+                  value:
+                    error: 'Email already exists'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                server_error:
+                  summary: Server error
+                  value:
+                    error: 'Registration failed'
+
+  /login:
+    post:
+      tags:
+        - Authentication
+      summary: Login user
+      description: |
+        Melakukan autentikasi user dengan email dan password. Mengembalikan JWT token yang berlaku selama 7 hari.
+
+        **Security:**
+        - Password di-verify menggunakan bcrypt
+        - JWT token mengandung userId dan email
+        - Token expires dalam 7 hari
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            examples:
+              valid_login:
+                summary: Login valid
+                value:
+                  email: 'john@example.com'
+                  password: 'password123'
+      responses:
+        '200':
+          description: Login berhasil
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+              examples:
+                success:
+                  summary: Login berhasil
+                  value:
+                    message: 'Login successful'
+                    user:
+                      id: '507f1f77bcf86cd799439011'
+                      name: 'John Doe'
+                      email: 'john@example.com'
+                    token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+        '401':
+          description: Email atau password salah
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalid_credentials:
+                  summary: Kredensial salah
+                  value:
+                    error: 'Password atau Email salah'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout user
+      description: |
+        Logout user dari sistem. Pada implementasi client-side, token harus dihapus dari storage.
+
+        **Note:** Endpoint ini hanya mengembalikan konfirmasi. Token invalidation dilakukan di client-side.
+      responses:
+        '200':
+          description: Logout berhasil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 'Logout successful'
+
+  # Latihan Endpoints (REST)
+  /latihan:
+    post:
+      tags:
+        - Latihan Management (REST)
+      summary: Tambah latihan baru
+      description: |
+        Menambahkan latihan baru untuk user yang sedang login. Status default adalah 'belum_terlaksana'.
+
+        **Validasi:**
+        - Name: tidak boleh kosong
+        - Type: harus salah satu dari [cardio, strength, flexibility]
+        - Duration: minimal 1 menit, maksimal 1440 menit (24 jam)
+        - Date: format YYYY-MM-DD
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LatihanRequest'
+            examples:
+              cardio_workout:
+                summary: Latihan Cardio
+                value:
+                  name: 'Lari Pagi'
+                  type: 'cardio'
+                  duration: 30
+                  date: '2024-01-15'
+              strength_workout:
+                summary: Latihan Strength
+                value:
+                  name: 'Push Up'
+                  type: 'strength'
+                  duration: 15
+                  date: '2024-01-15'
+      responses:
+        '201':
+          description: Latihan berhasil ditambahkan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LatihanResponse'
+              examples:
+                success:
+                  summary: Latihan berhasil ditambah
+                  value:
+                    message: 'Latihan berhasil ditambahkan'
+                    latihan:
+                      _id: '507f1f77bcf86cd799439013'
+                      userId: '507f1f77bcf86cd799439011'
+                      name: 'Lari Pagi'
+                      type: 'cardio'
+                      duration: 30
+                      date: '2024-01-15T00:00:00.000Z'
+                      status: 'belum_terlaksana'
+                      createdAt: '2024-01-15T10:00:00.000Z'
+                      updatedAt: '2024-01-15T10:00:00.000Z'
+        '401':
+          description: Token tidak valid atau tidak ada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      tags:
+        - Latihan Management (REST)
+      summary: Ambil semua latihan user
+      description: |
+        Mengambil semua latihan milik user yang sedang login, diurutkan berdasarkan tanggal (ascending).
+
+        **Filter:** Hanya menampilkan latihan milik user yang sedang login.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Data latihan berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 'Data latihan berhasil diambil'
+                  latihan:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Latihan'
+              examples:
+                success:
+                  summary: Data latihan
+                  value:
+                    message: 'Data latihan berhasil diambil'
+                    latihan:
+                      - _id: '507f1f77bcf86cd799439013'
+                        userId: '507f1f77bcf86cd799439011'
+                        name: 'Lari Pagi'
+                        type: 'cardio'
+                        duration: 30
+                        date: '2024-01-15T00:00:00.000Z'
+                        status: 'terlaksana'
+                      - _id: '507f1f77bcf86cd799439014'
+                        userId: '507f1f77bcf86cd799439011'
+                        name: 'Push Up'
+                        type: 'strength'
+                        duration: 15
+                        date: '2024-01-16T00:00:00.000Z'
+                        status: 'belum_terlaksana'
+        '401':
+          description: Token tidak valid atau tidak ada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /latihan/{id}:
+    put:
+      tags:
+        - Latihan Management (REST)
+      summary: Update latihan berdasarkan ID
+      description: |
+        Mengupdate latihan berdasarkan ID. Hanya user pemilik latihan yang bisa mengupdate.
+
+        **Partial Update:** Semua field bersifat opsional, hanya field yang dikirim yang akan diupdate.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: MongoDB ObjectId dari latihan
+          schema:
+            type: string
+            example: '507f1f77bcf86cd799439013'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LatihanUpdateRequest'
+            examples:
+              update_status:
+                summary: Update status saja
+                value:
+                  status: 'terlaksana'
+              update_all:
+                summary: Update semua field
+                value:
+                  name: 'Lari Sore'
+                  type: 'cardio'
+                  duration: 45
+                  date: '2024-01-16'
+                  status: 'terlaksana'
+      responses:
+        '200':
+          description: Latihan berhasil diupdate
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LatihanResponse'
+        '404':
+          description: Latihan tidak ditemukan atau bukan milik user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                not_found:
+                  summary: Latihan tidak ditemukan
+                  value:
+                    error: 'Latihan tidak ditemukan'
+        '401':
+          description: Token tidak valid atau tidak ada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Latihan Management (REST)
+      summary: Hapus latihan berdasarkan ID
+      description: |
+        Menghapus latihan berdasarkan ID. Hanya user pemilik latihan yang bisa menghapus.
+
+        **Warning:** Operasi ini tidak dapat dibatalkan.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: MongoDB ObjectId dari latihan
+          schema:
+            type: string
+            example: '507f1f77bcf86cd799439013'
+      responses:
+        '200':
+          description: Latihan berhasil dihapus
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 'Latihan berhasil dihapus'
+        '404':
+          description: Latihan tidak ditemukan atau bukan milik user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Token tidak valid atau tidak ada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Calories Calculation Endpoint
+  /latihan/calories/total:
+    get:
+      tags:
+        - Latihan Management (REST)
+      summary: Hitung total kalori terbakar
+      description: |
+        Menghitung total kalori yang terbakar dari semua latihan dengan status 'terlaksana' milik user.
+
+        **Kalkulasi:**
+        - Menggunakan API external (API Ninjas) untuk kalkulasi akurat
+        - Fallback ke estimasi 5 kalori/menit jika API gagal
+        - Mapping aktivitas Indonesia ke bahasa Inggris
+
+        **Aktivitas yang didukung:**
+        - lari/jogging → running
+        - jalan → walking  
+        - sepeda → cycling
+        - renang → swimming
+        - push up → push ups
+        - sit up → sit ups
+        - squat → squats
+        - yoga → yoga
+        - gym → weight lifting
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Total kalori berhasil dihitung
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CaloriesResponse'
+              examples:
+                success:
+                  summary: Total kalori
+                  value:
+                    totalCalories: 450
+        '401':
+          description: Token tidak valid atau tidak ada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Weather Data Endpoint
+  /weather:
+    get:
+      tags:
+        - Latihan Management (REST)
+      summary: Ambil data cuaca
+      description: |
+        Mengambil data cuaca untuk kota Palu dari OpenWeather API. Data cuaca digunakan untuk menampilkan informasi cuaca di kalender.
+
+        **Fitur:**
+        - Data cuaca 5 hari ke depan
+        - Suhu dalam Celsius
+        - Icon cuaca (cerah, berawan, hujan, gerimis)
+        - Data diproses dan dikelompokkan per tanggal
+
+        **Keamanan:**
+        - API key OpenWeather disimpan aman di backend
+        - Tidak ada exposure API key ke frontend
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Data cuaca berhasil diambil
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  weatherData:
+                    type: object
+                    description: Data cuaca dikelompokkan per tanggal
+                    additionalProperties:
+                      type: object
+                      properties:
+                        temp:
+                          type: integer
+                          description: Suhu dalam Celsius
+                          example: 29
+                        icon:
+                          type: string
+                          description: Icon emoji cuaca
+                          example: '☀️'
+              examples:
+                success:
+                  summary: Data cuaca berhasil
+                  value:
+                    weatherData:
+                      '2024-01-15':
+                        temp: 29
+                        icon: '☀️'
+                      '2024-01-16':
+                        temp: 27
+                        icon: '☁️'
+                      '2024-01-17':
+                        temp: 26
+                        icon: '🌧️'
+        '401':
+          description: Token tidak valid atau tidak ada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server error atau API key tidak dikonfigurasi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                api_key_missing:
+                  summary: API key tidak dikonfigurasi
+                  value:
+                    error: 'OpenWeather API key tidak dikonfigurasi'
+                weather_api_error:
+                  summary: Error dari OpenWeather API
+                  value:
+                    error: 'Gagal mengambil data cuaca'
+
+  # GraphQL Endpoint
+  /graphql:
+    post:
+      tags:
+        - GraphQL API
+      summary: GraphQL Query Endpoint
+      description: |
+        Endpoint untuk menjalankan GraphQL queries dan mutations. Mendukung introspection dan flexible querying.
+
+        **Available Queries:**
+        - `latihan`: Mengambil semua latihan user
+        - `latihanById(id: ID!)`: Mengambil latihan berdasarkan ID
+
+        **GraphQL Schema:**
+        ```graphql
+        type Latihan {
+          _id: ID!
+          name: String!
+          type: TypeLatihan!
+          duration: Int!
+          date: String!
+          status: StatusLatihan!
+        }
+
+        enum TypeLatihan {
+          cardio
+          strength
+          flexibility
+        }
+
+        enum StatusLatihan {
+          terlaksana
+          belum_terlaksana
+        }
+
+        type Query {
+          latihan: [Latihan!]!
+          latihanById(id: ID!): Latihan
+        }
+        ```
+
+        **Keamanan:**
+        - Memerlukan JWT authentication
+        - User hanya bisa mengakses data latihan miliknya sendiri
+        - Input validation otomatis oleh GraphQL schema
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GraphQLQuery'
+            examples:
+              get_all_latihan:
+                summary: Ambil semua latihan
+                value:
+                  query: |
+                    {
+                      latihan {
+                        _id
+                        name
+                        type
+                        duration
+                        date
+                        status
+                      }
+                    }
+                  variables: {}
+              get_latihan_by_id:
+                summary: Ambil latihan berdasarkan ID
+                value:
+                  query: |
+                    query GetLatihanById($id: ID!) {
+                      latihanById(id: $id) {
+                        _id
+                        name
+                        type
+                        duration
+                        date
+                        status
+                      }
+                    }
+                  variables:
+                    id: '507f1f77bcf86cd799439013'
+              selective_fields:
+                summary: Ambil field tertentu saja
+                value:
+                  query: |
+                    {
+                      latihan {
+                        _id
+                        name
+                        status
+                      }
+                    }
+                  variables: {}
+      responses:
+        '200':
+          description: GraphQL query berhasil dieksekusi
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GraphQLResponse'
+              examples:
+                success_all_latihan:
+                  summary: Berhasil ambil semua latihan
+                  value:
+                    data:
+                      latihan:
+                        - _id: '507f1f77bcf86cd799439013'
+                          name: 'Lari Pagi'
+                          type: 'cardio'
+                          duration: 30
+                          date: '2024-01-15T00:00:00.000Z'
+                          status: 'terlaksana'
+                        - _id: '507f1f77bcf86cd799439014'
+                          name: 'Push Up'
+                          type: 'strength'
+                          duration: 15
+                          date: '2024-01-16T00:00:00.000Z'
+                          status: 'belum_terlaksana'
+                success_by_id:
+                  summary: Berhasil ambil latihan by ID
+                  value:
+                    data:
+                      latihanById:
+                        _id: '507f1f77bcf86cd799439013'
+                        name: 'Lari Pagi'
+                        type: 'cardio'
+                        duration: 30
+                        date: '2024-01-15T00:00:00.000Z'
+                        status: 'terlaksana'
+                not_found:
+                  summary: Latihan tidak ditemukan
+                  value:
+                    data:
+                      latihanById: null
+        '400':
+          description: GraphQL query error atau syntax error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GraphQLResponse'
+              examples:
+                syntax_error:
+                  summary: Syntax error dalam query
+                  value:
+                    errors:
+                      - message: 'Syntax Error: Expected Name, found }'
+                        locations:
+                          - line: 2
+                            column: 5
+                validation_error:
+                  summary: Validation error
+                  value:
+                    errors:
+                      - message: 'Cannot query field "invalidField" on type "Latihan"'
+                        locations:
+                          - line: 3
+                            column: 9
+        '401':
+          description: Token tidak valid atau tidak ada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+# Tags untuk grouping endpoints
+tags:
+  - name: Authentication
+    description: |
+      Endpoints untuk autentikasi user (register, login, logout).
+
+      **Fitur Keamanan:**
+      - Token JWT dengan masa berlaku 7 hari
+      - Enkripsi password menggunakan bcrypt
+      - Validasi format email dan pengecekan keunikan
+
+  - name: Latihan Management (REST)
+    description: |
+      REST API endpoints untuk operasi CRUD latihan.
+
+      **Fitur:**
+      - Operasi CRUD lengkap
+      - Isolasi data user (user hanya bisa akses data sendiri)
+      - Kalkulasi kalori otomatis
+      - Pelacakan status latihan (terlaksana/belum_terlaksana)
+      - Penggunaan API KEY dan dukungan rate limiting untuk pemakaian Endpoint API publik
+
+  - name: GraphQL API
+    description: |
+      GraphQL endpoint untuk query yang fleksibel.
+
+      **Keunggulan:**
+      - Query field selektif sesuai kebutuhan
+      - Satu endpoint untuk semua operasi
+      - Validasi tipe data yang ketat dengan schema
+      - Dukungan introspection untuk development
+
+# Security Requirements
+security:
+  - bearerAuth: []

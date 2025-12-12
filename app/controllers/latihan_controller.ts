@@ -193,4 +193,58 @@ export default class LatihanController {
       return response.status(500).json({ error: 'Gagal menghitung kalori' })
     }
   }
+
+  public async getWeather({ response }: HttpContext) {
+    try {
+      const Env = await import('#start/env')
+      const apiKey = Env.default.get('OPENWEATHER_API_KEY')
+      
+      if (!apiKey) {
+        return response.status(500).json({ error: 'OpenWeather API key tidak dikonfigurasi' })
+      }
+
+      const apiResponse = await fetch(
+        `https://api.openweathermap.org/data/2.5/forecast?q=Palu,ID&appid=${apiKey}&units=metric`
+      )
+      
+      if (apiResponse.ok) {
+        const data = await apiResponse.json() as {
+          list: Array<{
+            dt: number
+            main: { temp: number }
+            weather: Array<{ main: string }>
+          }>
+        }
+        
+        // Process weather data seperti di frontend
+        const weatherData: { [key: string]: any } = {}
+        data.list.forEach((item) => {
+          const date = new Date(item.dt * 1000).toISOString().split('T')[0]
+          if (!weatherData[date]) {
+            weatherData[date] = {
+              temp: Math.round(item.main.temp),
+              icon: this.getWeatherIcon(item.weather[0].main),
+            }
+          }
+        })
+        
+        return response.json({ weatherData })
+      } else {
+        return response.status(500).json({ error: 'Gagal mengambil data cuaca' })
+      }
+    } catch (error) {
+      console.log('Weather API error:', error)
+      return response.status(500).json({ error: 'Gagal mengambil data cuaca' })
+    }
+  }
+
+  private getWeatherIcon(condition: string): string {
+    const icons: { [key: string]: string } = {
+      Clear: '☀️',
+      Clouds: '☁️',
+      Rain: '🌧️',
+      Drizzle: '🌦️'
+    }
+    return icons[condition] || '☀️'
+  }
 }

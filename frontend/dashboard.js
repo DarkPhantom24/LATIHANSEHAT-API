@@ -1,5 +1,4 @@
 const API_URL = 'http://localhost:3333'
-const WEATHER_API_KEY = '9dadc72ebc4326a5964f8f265a738cdd'
 let workoutsData = []
 let weatherData = {}
 let isLoading = false
@@ -501,29 +500,18 @@ function changeMonth(direction) {
 
 async function fetchWeatherData() {
   try {
-    const response = await fetch(
-      `https://api.openweathermap.org/data/2.5/forecast?q=Palu,ID&appid=${WEATHER_API_KEY}&units=metric`
-    )
+    const token = localStorage.getItem('token')
+    const response = await fetch(`${API_URL}/weather`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    
     if (response.ok) {
       const data = await response.json()
-      processWeatherData(data)
+      weatherData = data.weatherData
     }
   } catch (error) {
     console.log('Weather fetch error:', error)
   }
-}
-
-function processWeatherData(data) {
-  weatherData = {}
-  data.list.forEach((item) => {
-    const date = new Date(item.dt * 1000).toISOString().split('T')[0]
-    if (!weatherData[date]) {
-      weatherData[date] = {
-        temp: Math.round(item.main.temp),
-        icon: getWeatherIcon(item.weather[0].main),
-      }
-    }
-  })
 }
 
 function getWeatherIcon(condition) {

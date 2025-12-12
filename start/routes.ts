@@ -26,6 +26,7 @@ router
     router.post('/latihan', [LatihanController, 'store'])
     router.get('/latihan', [LatihanController, 'index'])
     router.get('/latihan/calories/total', [LatihanController, 'getCalories'])
+    router.get('/weather', [LatihanController, 'getWeather'])
     router.put('/latihan/:id', [LatihanController, 'update'])
     router.delete('/latihan/:id', [LatihanController, 'destroy'])
   })
